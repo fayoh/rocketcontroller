@@ -26,6 +26,7 @@ Implementation of the RFM69HCW driver class.
     to change to a generic lib or direct manipulation through sysfs
 """
 
+import time
 import RPi.GPIO as GPIO
 import spidev
 
@@ -142,6 +143,8 @@ class RFM69HCW:
 
     def __init__(self, spibus, rxpayloadreadypin, resetpin):
         self.spi = None
+        self.rxpayloadreadypin = rxpayloadreadypin
+        self.resetpin = resetpin
         self.rx_callbacks = []
         self.package_size = 10
         self.node_address = 0x01
@@ -149,14 +152,14 @@ class RFM69HCW:
         self.rssi = -127
         self.mode = 'rx'
         self._init_spi(spibus)
-        self._init_gpio(rxpayloadreadypin,resetpin)
+        self._init_gpio(rxpayloadreadypin, resetpin)
 
     def init_rfm69hcw(self):
         """
         Reset the chip and write default register values
         If you know that your chip is connected and setup correctly you
         can skip this
-        The chip will be in rx mode after return of this 
+        The chip will be in rx mode after return of this
         """
         # Start with resetting the module to a known state
         self._reset()
@@ -172,20 +175,23 @@ class RFM69HCW:
 
     def _reset(self):
         """
-        Reset the chip to a known state
-        by toggling the reset pin and waiting
+        Reset the chip to a known state by toggling the reset pin
+        high for 100us and then waiting 5ms
         """
-
-        # TODO: Implement
-        None
+        # It seems like python can not reliably sleep for less than
+        # tenish milliseconds, so let's use 15
+        GPIO.output(self.resetpin, GPIO.HIGH)
+        time.sleep(0.015)
+        GPIO.output(self.resetpin, GPIO.LOW)
+        time.sleep(0.015)
 
     def _init_spi(self, spibus):
         self.spi = spidev.SpiDev(spibus)
         self.spi.max_speed_hz = 500000
 
-    def _init_gpio(self, txreadypin):
+    def _init_gpio(self, txreadypin, resetpin):
         GPIO.setmode(GPIO.BOARD)
-        GPIO.setup(resetpin, GPIO.OUT)
+        GPIO.setup(resetpin, GPIO.OUT, pull_up_down=GPIO.PUD_DOWN)
         GPIO.setup(txreadypin, GPIO.IN)
         GPIO.add_event_detect(txreadypin,
                               GPIO.RISING,
